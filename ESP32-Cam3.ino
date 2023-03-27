@@ -54,6 +54,11 @@
 //#define CAMERA_MODEL_M5STACK_WIDE
 #define CAMERA_MODEL_AI_THINKER
 
+#define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  5        /* Time ESP32 will go to sleep (in seconds) */
+
+RTC_DATA_ATTR int bootCount = 0;
+
 // Initialize Wifi connection to the router
 char ssid[] = "jzjz";     // your network SSID (name)
 char password[] = "jzjz"; // your network key
@@ -72,8 +77,8 @@ char password[] = "jzjz"; // your network key
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
 
-int Bot_mtbs = 1000; //mean time between scan messages
-long Bot_lasttime;   //last time messages' scan has been done
+// int Bot_mtbs = 1000; //mean time between scan messages
+// long Bot_lasttime;   //last time messages' scan has been done
 
 bool flashState = LOW;
 
@@ -130,24 +135,20 @@ int getNextBufferLen() {
 ///////////////////////////////
 
 
-void handleNewMessages(int numNewMessages) {
-  Serial.println("handleNewMessages");
-  Serial.println(String(numNewMessages));
+void SendPicture() {
+  Serial.println("SendingNewMessage");
+//   Serial.println(String(numNewMessages));
 
-  for (int i = 0; i < numNewMessages; i++) {
-    String chat_id = String(bot.messages[i].chat_id);
-    String text = bot.messages[i].text;
+//   for (int i = 0; i < numNewMessages; i++) {
+//     String chat_id = String(bot.messages[i].chat_id);
+//     String text = bot.messages[i].text;
 
-    String from_name = bot.messages[i].from_name;
-    if (from_name == "") from_name = "Guest";
+//     String from_name = bot.messages[i].from_name;
+//     if (from_name == "") from_name = "Guest";
 
-    if (text == "/flash") {
+//     if (text == "/flash") {
       flashState = !flashState;
       digitalWrite(FLASH_LED_PIN, flashState);
-    }
-
-    if (text == "/uxga" || text == "/photo" ) {
-
       fb = NULL;
 
       sensor_t * s = esp_camera_sensor_get();
@@ -193,84 +194,102 @@ void handleNewMessages(int numNewMessages) {
       Serial.println("done!");
 
       esp_camera_fb_return(fb);
-    }
+//     }
 
 
 
-    if (text == "/qvga" ) {
+//     if (text == "/qvga" ) {
 
-      fb = NULL;
+//       fb = NULL;
 
-      sensor_t * s = esp_camera_sensor_get();
-      s->set_framesize(s, FRAMESIZE_QVGA);  // jz  qvga 320x250   4 kb
+//       sensor_t * s = esp_camera_sensor_get();
+//       s->set_framesize(s, FRAMESIZE_QVGA);  // jz  qvga 320x250   4 kb
 
-      fb = esp_camera_fb_get();   // takes a pic or two for camera to adjust
-      esp_camera_fb_return(fb);
-      fb = esp_camera_fb_get();
-      esp_camera_fb_return(fb);
+//       fb = esp_camera_fb_get();   // takes a pic or two for camera to adjust
+//       esp_camera_fb_return(fb);
+//       fb = esp_camera_fb_get();
+//       esp_camera_fb_return(fb);
 
-      Serial.println("\n\n\nSending QVGA");
+//       Serial.println("\n\n\nSending QVGA");
 
-      // Take Picture with Camera
-      fb = esp_camera_fb_get();
-      if (!fb) {
-        Serial.println("Camera capture failed");
-        bot.sendMessage(chat_id, "Camera capture failed", "");
-        return;
-      }
+//       // Take Picture with Camera
+//       fb = esp_camera_fb_get();
+//       if (!fb) {
+//         Serial.println("Camera capture failed");
+//         bot.sendMessage(chat_id, "Camera capture failed", "");
+//         return;
+//       }
 
-      currentByte = 0;
-      fb_length = fb->len;
-      fb_buffer = fb->buf;
+//       currentByte = 0;
+//       fb_length = fb->len;
+//       fb_buffer = fb->buf;
 
-      Serial.println("\n>>>>> Sending as 512 byte blocks, with jzdelay of 0, bytes=  " + String(fb_length));
+//       Serial.println("\n>>>>> Sending as 512 byte blocks, with jzdelay of 0, bytes=  " + String(fb_length));
 
-      bot.sendPhotoByBinary(chat_id, "image/jpeg", fb_length,
-                            isMoreDataAvailable, getNextByte,
-                            nullptr, nullptr);
+//       bot.sendPhotoByBinary(chat_id, "image/jpeg", fb_length,
+//                             isMoreDataAvailable, getNextByte,
+//                             nullptr, nullptr);
 
-      dataAvailable = true;
-      Serial.println("\n>>>>>Sending as one block, bytes=  " + String(fb_length));
+//       dataAvailable = true;
+//       Serial.println("\n>>>>>Sending as one block, bytes=  " + String(fb_length));
 
 
-      bot.sendPhotoByBinary(chat_id, "image/jpeg", fb->len,
-                            isMoreDataAvailableXXX, nullptr,
-                            getNextBuffer, getNextBufferLen);
+//       bot.sendPhotoByBinary(chat_id, "image/jpeg", fb->len,
+//                             isMoreDataAvailableXXX, nullptr,
+//                             getNextBuffer, getNextBufferLen);
 
-      //Serial.println("\n\n\nThat should have failed");
+//       //Serial.println("\n\n\nThat should have failed");
 
-      Serial.println("done!");
+//       Serial.println("done!");
 
-      esp_camera_fb_return(fb);
-    }
+//       esp_camera_fb_return(fb);
+//     }
 
-    if (text == "/start") {
-      String welcome = "Welcome to the ESP32Cam Telegram bot.\n\n";
-      welcome += "/photo : will take a photo\n";
-      welcome += "/flash : toggle flash LED (VERY BRIGHT!)\n";
-      bot.sendMessage(chat_id, welcome, "Markdown");
-    }
+//     if (text == "/start") {
+//       String welcome = "Welcome to the ESP32Cam Telegram bot.\n\n";
+//       welcome += "/photo : will take a photo\n";
+//       welcome += "/flash : toggle flash LED (VERY BRIGHT!)\n";
+//       bot.sendMessage(chat_id, welcome, "Markdown");
+//     }
+//   }
+}
+
+/*
+Method to print the reason by which ESP32
+has been awaken from sleep
+*/
+void return_wakeup_reason(){
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch(wakeup_reason)
+  {
+    case ESP_SLEEP_WAKEUP_EXT0 : return "Wakeup caused by external signal using RTC_IO";
+    case ESP_SLEEP_WAKEUP_EXT1 : return "Wakeup caused by external signal using RTC_CNTL";
+    case ESP_SLEEP_WAKEUP_TIMER : return "Wakeup caused by timer";
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : return "Wakeup caused by touchpad";
+    case ESP_SLEEP_WAKEUP_ULP : return "Wakeup caused by ULP program";
+    default : return "Wakeup was not caused by deep sleep: %d\n" + wakeup_reason;
   }
 }
 
-
-
 void setup() {
-  Serial.begin(115200);
+//   Serial.begin(115200);
 
   pinMode(FLASH_LED_PIN, OUTPUT);
   digitalWrite(FLASH_LED_PIN, flashState); //defaults to low
 
   if (!setupCamera()) {
-    Serial.println("Camera Setup Failed!");
+//     Serial.println("Camera Setup Failed!");
     while (true) {
       delay(100);
     }
   }
 
   // Attempt to connect to Wifi network:
-  Serial.print("Connecting Wifi: ");
-  Serial.println(ssid);
+//   Serial.print("Connecting Wifi: ");
+//   Serial.println(ssid);
 
   // Set WiFi to station mode and disconnect from an AP if it was Previously
   // connected
@@ -278,29 +297,37 @@ void setup() {
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
+//     Serial.print(".");
     delay(500);
   }
 
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+//   Serial.println("");
+//   Serial.println("WiFi connected");
+//   Serial.print("IP address: ");
+//   Serial.println(WiFi.localIP());
 
   // Make the bot wait for a new message for up to 60seconds
-  bot.longPoll = 60;
+//   bot.longPoll = 60;
+   
+   ++bootCount;
+   
+   reason = return_wakeup_reason();
+   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+   
 }
 
 void loop() {
-  if (millis() > Bot_lasttime + Bot_mtbs)  {
-    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+   SendPicture();
+   esp_deep_sleep_start();
+   //   if (millis() > Bot_lasttime + Bot_mtbs)  {
+//     int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
 
-    while (numNewMessages) {
-      Serial.println("got response");
-      handleNewMessages(numNewMessages);
-      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    }
+//     while (numNewMessages) {
+// //       Serial.println("got response");
+//       handleNewMessages(numNewMessages);
+//       numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+//     }
 
-    Bot_lasttime = millis();
-  }
+//     Bot_lasttime = millis();
+//   }
 }
